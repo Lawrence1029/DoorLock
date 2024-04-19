@@ -59,7 +59,7 @@ const osThreadAttr_t KeyPadTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
-
+char *key_input = "Please Enter";
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,7 +70,46 @@ void OLEDLoop(void *argument);
 void KeyPadLoop(void *argument);
 
 /* USER CODE BEGIN PFP */
+void key_pad_scan(){
+	key_input = ' ';
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
+	if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET ){
+		key_input = '1';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_SET ){
+		key_input = '2';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET ){
+		key_input = '3';
+	}
 
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
+	if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET ){
+		key_input = '4';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_SET ){
+		key_input = '5';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET ){
+		key_input = '6';
+	}
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
+	if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET ){
+		key_input = '7';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_SET ){
+		key_input = '8';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET ){
+		key_input = '9';
+	}
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
+	if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET ){
+		key_input = '*';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_SET ){
+		key_input = '0';
+	}else if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET ){
+		key_input = '#';
+	}
+
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -240,6 +279,7 @@ static void MX_I2C1_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
@@ -247,6 +287,22 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PA0 PA1 PA2 PA3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA4 PA5 PA6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -266,6 +322,8 @@ static void MX_GPIO_Init(void)
 void OLEDLoop(void *argument)
 {
   /* USER CODE BEGIN 5 */
+	  char prev = ' ';
+	  uint8_t timeout_counter= 0;
 	  SSD1306_Init();
 	  char snum[5];
 
@@ -282,13 +340,29 @@ void OLEDLoop(void *argument)
 	  HAL_Delay(3000);
 	  SSD1306_Stopscroll();
 	  SSD1306_Clear();
-	  SSD1306_GotoXY (35,0);
-	  SSD1306_Puts ("Bump", &Font_11x18, 1);
+	  SSD1306_GotoXY (5,0);
+	  SSD1306_Puts ("Key Pad Got", &Font_11x18, 1);
+	  SSD1306_UpdateScreen();
 
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  if(key_input != ' '){
+		  if(prev != key_input){
+		  		prev = key_input;
+		  		SSD1306_GotoXY (53, 30);
+		  		SSD1306_Puts ("             ", &Font_16x26, 1);
+		  		SSD1306_UpdateScreen();
+		  		SSD1306_GotoXY (53, 30);
+		  		SSD1306_Puts (&key_input, &Font_16x26, 1);
+		  		SSD1306_UpdateScreen();
+		  }
+	  }else{
+		  prev = ' ';
+	  }
+
+
+    osDelay(200/ portTICK_PERIOD_MS);
   }
   /* USER CODE END 5 */
 }
@@ -306,7 +380,9 @@ void KeyPadLoop(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	key_pad_scan();
+
+    osDelay(50/portTICK_PERIOD_MS);
   }
   /* USER CODE END KeyPadLoop */
 }
