@@ -16,7 +16,7 @@
 #define IN4_PIN GPIO_PIN_11
 #define IN4_PORT GPIOB
 
-char *key_input = "Please Enter";
+char *key_input = " ";
 
 void key_pad_scan(){
 	key_input = ' ';
