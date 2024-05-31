@@ -67,6 +67,13 @@ const osThreadAttr_t BDLCTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for FingerPrintTask */
+osThreadId_t FingerPrintTaskHandle;
+const osThreadAttr_t FingerPrintTask_attributes = {
+  .name = "FingerPrintTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -80,6 +87,7 @@ static void MX_USART2_UART_Init(void);
 void OLEDLoop(void *argument);
 void KeyPadLoop(void *argument);
 void BLDCLoop(void *argument);
+void FingerPrintLoop(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -162,6 +170,9 @@ int main(void)
 
   /* creation of BDLCTask */
   BDLCTaskHandle = osThreadNew(BLDCLoop, NULL, &BDLCTask_attributes);
+
+  /* creation of FingerPrintTask */
+  FingerPrintTaskHandle = osThreadNew(FingerPrintLoop, NULL, &FingerPrintTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -365,8 +376,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA4 PA5 PA6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
+  /*Configure GPIO pins : PA4 PA5 PA6 FInger_Sense_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|FInger_Sense_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -477,6 +488,28 @@ void BLDCLoop(void *argument)
     osDelay(50/portTICK_PERIOD_MS);
   }
   /* USER CODE END BLDCLoop */
+}
+
+/* USER CODE BEGIN Header_FingerPrintLoop */
+/**
+* @brief Function implementing the FingerPrintTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_FingerPrintLoop */
+void FingerPrintLoop(void *argument)
+{
+  /* USER CODE BEGIN FingerPrintLoop */
+  /* Infinite loop */
+  for(;;)
+  {	
+	  if(HAL_GPIO_ReadPin(GPIOA, FInger_Sense_Pin) == GPIO_PIN_SET ){
+	  	printf("finger detected\n");
+	  }
+    //fingerprint_mode = save_fingerprint(i);//		 AS608_Add_Fingerprint();
+    osDelay(500/portTICK_PERIOD_MS);
+  }
+  /* USER CODE END FingerPrintLoop */
 }
 
 /**

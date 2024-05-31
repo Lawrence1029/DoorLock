@@ -1,6 +1,8 @@
 {
     "json.schemas": [],
     "files.associations": {
-        "device.h": "c"
+        "device.h": "c",
+        "main.h": "c",
+        "fingerprint.h": "c"
     }
 }

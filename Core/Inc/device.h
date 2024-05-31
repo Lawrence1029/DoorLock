@@ -1,6 +1,8 @@
 #include "stm32f1xx_hal.h"
 #include "fonts.h"
 #include "ssd1306.h"
+#include "fingerprint.h"
+
 
 extern char *key_input;
 
