@@ -43,6 +43,8 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+IWDG_HandleTypeDef hiwdg;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
@@ -60,17 +62,17 @@ const osThreadAttr_t KeyPadTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for BDLCTask */
-osThreadId_t BDLCTaskHandle;
-const osThreadAttr_t BDLCTask_attributes = {
-  .name = "BDLCTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
 /* Definitions for FingerPrintTask */
 osThreadId_t FingerPrintTaskHandle;
 const osThreadAttr_t FingerPrintTask_attributes = {
   .name = "FingerPrintTask",
+  .stack_size = 300 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for LockControl */
+osThreadId_t LockControlHandle;
+const osThreadAttr_t LockControl_attributes = {
+  .name = "LockControl",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
@@ -84,10 +86,11 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_IWDG_Init(void);
 void OLEDLoop(void *argument);
 void KeyPadLoop(void *argument);
-void BLDCLoop(void *argument);
 void FingerPrintLoop(void *argument);
+void LockControlLoop(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -138,6 +141,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -168,11 +172,11 @@ int main(void)
   /* creation of KeyPadTask */
   KeyPadTaskHandle = osThreadNew(KeyPadLoop, NULL, &KeyPadTask_attributes);
 
-  /* creation of BDLCTask */
-  BDLCTaskHandle = osThreadNew(BLDCLoop, NULL, &BDLCTask_attributes);
-
   /* creation of FingerPrintTask */
   FingerPrintTaskHandle = osThreadNew(FingerPrintLoop, NULL, &FingerPrintTask_attributes);
+
+  /* creation of LockControl */
+  LockControlHandle = osThreadNew(LockControlLoop, NULL, &LockControl_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -209,10 +213,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -267,6 +272,34 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_4;
+  hiwdg.Init.Reload = 799;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
 
 }
 
@@ -461,33 +494,56 @@ void OLEDLoop(void *argument)
 void KeyPadLoop(void *argument)
 {
   /* USER CODE BEGIN KeyPadLoop */
+  char prev = ' ';
+  char entry[6];
+  uint8_t index = 0;
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
-	key_pad_scan();
+    key_pad_scan();
+	  if(key_input != ' '){
+		  if(prev != key_input){
+		  		prev = key_input;
+		  		SSD1306_GotoXY (53, 30);
+		  		SSD1306_Puts ("             ", &Font_16x26, 1);
+		  		SSD1306_UpdateScreen();
+		  		SSD1306_GotoXY (53, 30);
+		  		SSD1306_Puts (&prev, &Font_16x26, 1);
+		  		SSD1306_UpdateScreen();
 
-    osDelay(50/portTICK_PERIOD_MS);
+          if(index < 6){
+            entry[index] = prev;
+            index++;
+          }
+
+          if(prev == '#' || prev == '*'){
+            SSD1306_Clear();
+	          SSD1306_GotoXY (15,0);
+            if(strcmp(entry, "980319") == 0){
+              if(prev == '#'){
+                //unlock
+	              SSD1306_Puts ("Unlocked", &Font_11x18, 1);
+	              SSD1306_UpdateScreen();
+              }else{
+                SaveFinger_Flag = 1;
+                SSD1306_Puts ("Place Finger", &Font_11x18, 1);
+	              SSD1306_UpdateScreen();
+              }
+            }else{
+              SSD1306_Puts ("Incorrect Pin", &Font_11x18, 1);
+	            SSD1306_UpdateScreen();
+            }
+            // Set all elements in the entry array to zero
+            memset(entry, 0, sizeof(entry));
+            index = 0;
+          }
+
+
+      }
+    }
+    osDelay(50 / portTICK_PERIOD_MS);
   }
   /* USER CODE END KeyPadLoop */
-}
-
-/* USER CODE BEGIN Header_BLDCLoop */
-/**
-* @brief Function implementing the BDLCTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_BLDCLoop */
-void BLDCLoop(void *argument)
-{
-  /* USER CODE BEGIN BLDCLoop */
-  /* Infinite loop */
-  for(;;)
-  {
-    stepCCV (256, 1/portTICK_PERIOD_MS);
-    osDelay(50/portTICK_PERIOD_MS);
-  }
-  /* USER CODE END BLDCLoop */
 }
 
 /* USER CODE BEGIN Header_FingerPrintLoop */
@@ -500,16 +556,76 @@ void BLDCLoop(void *argument)
 void FingerPrintLoop(void *argument)
 {
   /* USER CODE BEGIN FingerPrintLoop */
+  uint8_t result;
+  uint8_t flag = 0;
   /* Infinite loop */
-  for(;;)
-  {	
-	  if(HAL_GPIO_ReadPin(GPIOA, FInger_Sense_Pin) == GPIO_PIN_SET ){
-	  	printf("finger detected\n");
-	  }
-    //fingerprint_mode = save_fingerprint(i);//		 AS608_Add_Fingerprint();
-    osDelay(500/portTICK_PERIOD_MS);
+  for (;;)
+  {
+    if (HAL_GPIO_ReadPin(GPIOA, FInger_Sense_Pin) == GPIO_PIN_SET)
+    {
+      if(SaveFinger_Flag == 1){
+        SSD1306_Clear();
+	      SSD1306_GotoXY (15,0);
+        SSD1306_Puts ("Saving...", &Font_11x18, 1);
+	      SSD1306_UpdateScreen();
+        result = save_fingerprint(0);
+        SaveFinger_Flag = 0;
+        if(result == 0){
+          SSD1306_Clear();
+	        SSD1306_GotoXY (15,0);
+          SSD1306_Puts ("Finger Saved", &Font_11x18, 1);
+	        SSD1306_UpdateScreen();
+        }else{
+          SSD1306_Clear();
+	        SSD1306_GotoXY (15,0);
+          SSD1306_Puts ("Try Again", &Font_11x18, 1);
+	        SSD1306_UpdateScreen();
+        }
+      }else{
+        if (flag == 0)
+        {
+          result = check_fingerprint();
+          if(result == 0){
+            //unlock
+            SSD1306_Puts ("Unlocked", &Font_11x18, 1);
+	          SSD1306_UpdateScreen();
+          }else{
+            SSD1306_Puts ("Unknown Finger", &Font_11x18, 1);
+	          SSD1306_UpdateScreen();
+          }
+          flag = 1;
+        }
+        else
+        {
+          flag = 0;
+        }
+      }
+    }
+
+    // fingerprint_mode = save_fingerprint(i);//		 AS608_Add_Fingerprint();
+    osDelay(50 / portTICK_PERIOD_MS);
   }
   /* USER CODE END FingerPrintLoop */
+}
+
+/* USER CODE BEGIN Header_LockControlLoop */
+/**
+* @brief Function implementing the LockControl thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_LockControlLoop */
+void LockControlLoop(void *argument)
+{
+  /* USER CODE BEGIN LockControlLoop */
+  /* Infinite loop */
+  for(;;)
+  {
+    HAL_IWDG_Refresh(&hiwdg);
+    stepCCV(256, 1 / portTICK_PERIOD_MS);
+    osDelay(50 / portTICK_PERIOD_MS);
+  }
+  /* USER CODE END LockControlLoop */
 }
 
 /**
