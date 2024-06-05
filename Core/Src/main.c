@@ -32,7 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define FLASH_END_ADDRESS 0x0800FFFB  // Address of the last 5 bytes
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -522,6 +522,7 @@ void KeyPadLoop(void *argument)
             if(strcmp(entry, "980319") == 0){
               if(prev == '#'){
                 //unlock
+                Lock_state = 0;
 	              SSD1306_Puts ("Unlocked", &Font_11x18, 1);
 	              SSD1306_UpdateScreen();
               }else{
@@ -530,6 +531,7 @@ void KeyPadLoop(void *argument)
 	              SSD1306_UpdateScreen();
               }
             }else{
+              Lock_state = 1;
               SSD1306_Puts ("Incorrect Pin", &Font_11x18, 1);
 	            SSD1306_UpdateScreen();
             }
@@ -587,9 +589,11 @@ void FingerPrintLoop(void *argument)
           result = check_fingerprint();
           if(result == 0){
             //unlock
+            Lock_state = 0;
             SSD1306_Puts ("Unlocked", &Font_11x18, 1);
 	          SSD1306_UpdateScreen();
           }else{
+            Lock_state = 1;
             SSD1306_Puts ("Unknown Finger", &Font_11x18, 1);
 	          SSD1306_UpdateScreen();
           }
@@ -622,7 +626,13 @@ void LockControlLoop(void *argument)
   for(;;)
   {
     HAL_IWDG_Refresh(&hiwdg);
-    stepCCV(256, 1 / portTICK_PERIOD_MS);
+    if(Lock_state == 0){
+      //while limit switch not triggered
+    }else{
+      //while limit switch not triggered
+      stepCCV(256, 1 / portTICK_PERIOD_MS);
+    }
+    
     osDelay(50 / portTICK_PERIOD_MS);
   }
   /* USER CODE END LockControlLoop */

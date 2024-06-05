@@ -6,6 +6,7 @@
 
 extern char *key_input;
 extern uint8_t SaveFinger_Flag;
+extern uint8_t Lock_state;
 
 void key_pad_scan();
 void stepCCV (int steps, uint16_t delay); // CCV - Counter Clockwise
