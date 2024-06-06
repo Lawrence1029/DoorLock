@@ -57,8 +57,15 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define FInger_Sense_Pin GPIO_PIN_8
-#define FInger_Sense_GPIO_Port GPIOA
+#define Lock_Limit_Switch_Pin GPIO_PIN_13
+#define Lock_Limit_Switch_GPIO_Port GPIOB
+#define Unlock_Limit_Switch_Pin GPIO_PIN_14
+#define Unlock_Limit_Switch_GPIO_Port GPIOB
+#define Door_Limit_Switch_Pin GPIO_PIN_15
+#define Door_Limit_Switch_GPIO_Port GPIOB
+#define Door_Limit_Switch_EXTI_IRQn EXTI15_10_IRQn
+#define Finger_Sense_Pin GPIO_PIN_8
+#define Finger_Sense_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

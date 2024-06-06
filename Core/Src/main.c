@@ -108,6 +108,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		HAL_UART_Receive_IT(&huart2, rx, 1);
 }
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if(GPIO_Pin == Door_Limit_Switch_Pin) {
+    Lock_state = 1;
+  } else {
+      __NOP();
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -409,8 +417,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA4 PA5 PA6 FInger_Sense_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|FInger_Sense_Pin;
+  /*Configure GPIO pins : PA4 PA5 PA6 Finger_Sense_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|Finger_Sense_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -421,6 +429,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Lock_Limit_Switch_Pin Unlock_Limit_Switch_Pin */
+  GPIO_InitStruct.Pin = Lock_Limit_Switch_Pin|Unlock_Limit_Switch_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Door_Limit_Switch_Pin */
+  GPIO_InitStruct.Pin = Door_Limit_Switch_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(Door_Limit_Switch_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -563,7 +587,7 @@ void FingerPrintLoop(void *argument)
   /* Infinite loop */
   for (;;)
   {
-    if (HAL_GPIO_ReadPin(GPIOA, FInger_Sense_Pin) == GPIO_PIN_SET)
+    if (HAL_GPIO_ReadPin(GPIOA, Finger_Sense_Pin) == GPIO_PIN_SET)
     {
       if(SaveFinger_Flag == 1){
         SSD1306_Clear();
@@ -628,11 +652,17 @@ void LockControlLoop(void *argument)
     HAL_IWDG_Refresh(&hiwdg);
     if(Lock_state == 0){
       //while limit switch not triggered
-    }else{
+    	while(HAL_GPIO_ReadPin(Unlock_Limit_Switch_GPIO_Port, Unlock_Limit_Switch_Pin) != GPIO_PIN_SET){
+        stepCV(256, 1 / portTICK_PERIOD_MS);
+      }
+      Lock_state = 2;
+    }else if(Lock_state == 1){
       //while limit switch not triggered
-      stepCCV(256, 1 / portTICK_PERIOD_MS);
+    	while(HAL_GPIO_ReadPin(Lock_Limit_Switch_GPIO_Port, Lock_Limit_Switch_Pin) != GPIO_PIN_SET){
+        stepCCV(256, 1 / portTICK_PERIOD_MS);
+      }
+      Lock_state = 2;
     }
-    
     osDelay(50 / portTICK_PERIOD_MS);
   }
   /* USER CODE END LockControlLoop */

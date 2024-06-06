@@ -18,7 +18,7 @@
 
 char *key_input = " ";
 uint8_t SaveFinger_Flag = 0;
-uint8_t Lock_state = 0;
+uint8_t Lock_state = 2;
 
 void key_pad_scan(){
 	key_input = ' ';
